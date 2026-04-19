@@ -46,6 +46,34 @@ describe("buildResourceList", () => {
     expect(r.uri).toBe("idf://booking/timeSlots");
   });
 
+  it("y→ies (Category → categories) — через pluralize-правило", () => {
+    const [r] = buildResourceList({
+      domain: "freelance",
+      visibleFields: { Category: ["id", "name"] },
+      worldSnapshot: { categories: [1, 2, 3] },
+    });
+    expect(r.uri).toBe("idf://freelance/categories");
+  });
+
+  it("x/sh → +es (Address → addresses)", () => {
+    const [r] = buildResourceList({
+      domain: "delivery",
+      visibleFields: { Address: ["id"] },
+      worldSnapshot: { addresses: [] },
+    });
+    expect(r.uri).toBe("idf://delivery/addresses");
+  });
+
+  it("если snapshot пуст — fallback на plural-guess правила", () => {
+    const [r] = buildResourceList({
+      domain: "x",
+      visibleFields: { Category: ["id"] },
+      worldSnapshot: null,
+    });
+    // fallback: pluralize("category") === "categories"
+    expect(r.uri).toBe("idf://x/categories");
+  });
+
   it("пустые visibleFields → пустой массив", () => {
     expect(buildResourceList({ domain: "x", visibleFields: null, worldSnapshot: {} })).toEqual([]);
     expect(buildResourceList({ domain: "x", visibleFields: {}, worldSnapshot: {} })).toEqual([]);

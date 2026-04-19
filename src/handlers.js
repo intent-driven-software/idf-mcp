@@ -48,19 +48,34 @@ export function makeToolCallHandler({ server, domain, token }) {
 const COLLECTION_MIMETYPE = "application/json";
 
 /**
+ * Простая английская плюрализация с учётом нескольких правил:
+ *   ends "y" preceded by consonant → y→ies   (Category → categories)
+ *   ends "s"/"x"/"z"/"ch"/"sh"     → +es     (Address → addresses)
+ *   иначе                          → +s      (Booking → bookings)
+ */
+function pluralize(singular) {
+  if (/[^aeiou]y$/.test(singular)) return singular.slice(0, -1) + "ies";
+  if (/(s|x|z|ch|sh)$/.test(singular)) return singular + "es";
+  return singular + "s";
+}
+
+/**
  * Превращает имя entity ("Booking") в collection-name ("bookings") по тем
- * же правилам, что серверный typemap: простая плюрализация + lowercase.
- * Покрывает 90% случаев, для исключений (TimeSlot → timeSlots / time_slots)
- * полагаемся на форму, которую возвращает /world.
+ * же правилам, что серверный typemap. Для irregular-plurals (TimeSlot →
+ * timeSlots, Category → categories) опираемся на worldKeys из /world —
+ * server-side plural это source of truth.
  */
 function toCollectionName(entityName, worldKeys) {
   const lower = entityName.charAt(0).toLowerCase() + entityName.slice(1);
-  // Точное совпадение в /world — предпочтительный источник истины
-  const pluralGuess = lower.endsWith("s") ? lower : lower + "s";
+  const pluralGuess = pluralize(lower);
+  // 1. Точное совпадение plural-формы в /world.
   if (worldKeys.includes(pluralGuess)) return pluralGuess;
+  // 2. Singular-форма в /world (редкий случай).
   if (worldKeys.includes(lower)) return lower;
-  // Последняя попытка — найти ключ, начинающийся с lower-формы
-  const match = worldKeys.find(k => k.toLowerCase().startsWith(lower.toLowerCase()));
+  // 3. Fuzzy: ключ в /world, чья lower-форма начинается с первых
+  //    (len-1) символов (справляется с `category` → `categories`).
+  const prefix = lower.length > 3 ? lower.slice(0, lower.length - 1) : lower;
+  const match = worldKeys.find(k => k.toLowerCase().startsWith(prefix));
   return match || pluralGuess;
 }
 

@@ -1,0 +1,49 @@
+{
+  "name": "@intent-driven/mcp-server",
+  "version": "0.1.0",
+  "description": "Превращает любой IDF-домен в MCP-сервер (Claude Desktop / Cursor / Zed) через /api/agent/:domain/* — ontology + intents + preapproval → tools + resources без потерь семантики",
+  "type": "module",
+  "license": "MIT",
+  "author": "Ignat Dubovsky",
+  "homepage": "https://github.com/DubovskiyIM/idf-mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DubovskiyIM/idf-mcp.git"
+  },
+  "keywords": [
+    "intent-driven",
+    "idf",
+    "mcp",
+    "model-context-protocol",
+    "claude-desktop",
+    "llm-agent"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "mcp-idf": "bin/mcp-idf.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    }
+  },
+  "main": "./src/index.js",
+  "files": [
+    "src",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
+  }
+}

@@ -1,0 +1,125 @@
+/**
+ * MCP request handlers поверх IDF agent-REST API.
+ *
+ * tools/call  → POST /api/agent/:domain/exec/:intentId
+ * resources/* → GET  /api/agent/:domain/world (фильтруется по visibleFields)
+ */
+
+export function makeToolCallHandler({ server, domain, token }) {
+  return async (intentId, args) => {
+    const res = await fetch(`${server}/api/agent/${domain}/exec/${intentId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(args || {}),
+    });
+    const payload = await res.json();
+    if (res.ok) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            status: payload.status,
+            effectId: payload.id,
+            createdEntity: payload.createdEntity,
+            effects: payload.effects,
+          }, null, 2),
+        }],
+      };
+    }
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: payload.status || "error",
+          error: payload.error,
+          reason: payload.reason || payload.message,
+          failedCondition: payload.failedCondition,
+          issues: payload.issues,
+        }, null, 2),
+      }],
+      isError: true,
+    };
+  };
+}
+
+const COLLECTION_MIMETYPE = "application/json";
+
+/**
+ * Превращает имя entity ("Booking") в collection-name ("bookings") по тем
+ * же правилам, что серверный typemap: простая плюрализация + lowercase.
+ * Покрывает 90% случаев, для исключений (TimeSlot → timeSlots / time_slots)
+ * полагаемся на форму, которую возвращает /world.
+ */
+function toCollectionName(entityName, worldKeys) {
+  const lower = entityName.charAt(0).toLowerCase() + entityName.slice(1);
+  // Точное совпадение в /world — предпочтительный источник истины
+  const pluralGuess = lower.endsWith("s") ? lower : lower + "s";
+  if (worldKeys.includes(pluralGuess)) return pluralGuess;
+  if (worldKeys.includes(lower)) return lower;
+  // Последняя попытка — найти ключ, начинающийся с lower-формы
+  const match = worldKeys.find(k => k.toLowerCase().startsWith(lower.toLowerCase()));
+  return match || pluralGuess;
+}
+
+/**
+ * Описание полей в зависимости от формы visibleFields.
+ *
+ * IDF допускает несколько форматов в `role.visibleFields[entityName]`:
+ *   Array  — явный whitelist полей: ["id","name","email"]
+ *   "own"  — все поля, viewer-scoped (single-owner)
+ *   "all"  — все поля, без фильтра
+ *   "aggregated" — агрегаты, row-level read недоступен
+ *   объект — composite shape (расширения)
+ */
+function describeFields(spec) {
+  if (Array.isArray(spec)) return `поля: ${spec.join(", ")}`;
+  if (typeof spec === "string") return `scope: ${spec}`;
+  if (spec && typeof spec === "object") return `shape: ${Object.keys(spec).join(", ")}`;
+  return "shape: unknown";
+}
+
+export function buildResourceList({ domain, visibleFields, worldSnapshot }) {
+  if (!visibleFields) return [];
+  const worldKeys = Object.keys(worldSnapshot || {});
+  const resources = [];
+  for (const entityName of Object.keys(visibleFields)) {
+    const collection = toCollectionName(entityName, worldKeys);
+    resources.push({
+      uri: `idf://${domain}/${collection}`,
+      name: collection,
+      title: `${entityName} (${domain})`,
+      description: `Filtered collection of ${entityName} — ${describeFields(visibleFields[entityName])}`,
+      mimeType: COLLECTION_MIMETYPE,
+    });
+  }
+  return resources;
+}
+
+export function makeResourceReadHandler({ server, domain, token }) {
+  return async (uri) => {
+    // URI: idf://<domain>/<collection>
+    const prefix = `idf://${domain}/`;
+    if (!uri.startsWith(prefix)) {
+      throw new Error(`unknown resource uri: ${uri}`);
+    }
+    const collection = uri.slice(prefix.length);
+    const res = await fetch(`${server}/api/agent/${domain}/world`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      throw new Error(`/world ${res.status}: ${await res.text()}`);
+    }
+    const { world } = await res.json();
+    const rows = world?.[collection] || [];
+    return {
+      contents: [{
+        uri,
+        mimeType: COLLECTION_MIMETYPE,
+        text: JSON.stringify(rows, null, 2),
+      }],
+    };
+  };
+}

@@ -107,6 +107,28 @@ MCP-сообщество решает эти задачи руками в каж
    IDF: `intent.conditions` попадают в tool description:
    `"booking.status = \"confirmed\"; booking.clientId = viewer.id"`.
 
+## Что должно быть сделано в домене, чтобы MCP работал
+
+Протокол надёжный, но требует от IDF-домена нескольких вещей. Если
+что-то из перечисленного не сделано, tools/list может вернуть пустой
+массив, tools/call — `domain_not_supported`, resources — пустые коллекции:
+
+1. **`ontology.roles.agent`** должна быть объявлена. Без неё агент
+   не видит ни tools, ни resources.
+2. **`role.agent.canExecute`** — безопасные intents (избегайте
+   `__irr:high` без preapproval).
+3. **`role.agent.visibleFields`** — массив полей или `"own"` / `"all"`
+   / `"aggregated"` маркеры.
+4. **Серверный effect builder** (`server/schema/effectBuildersRegistry.cjs`
+   в idf-prototype) должен включать ваш домен. Без него tools/call
+   отдаёт `domain_not_supported`.
+5. **Публичные каталоги без ownerField.** Если entity имеет
+   `ownerField`, SDK `filterWorldForRole` отфильтрует все row'ы,
+   где `row[ownerField] !== viewer.id`. Для публичных каталогов
+   (например, `Task` со `status: "published"`) нужна либо замена
+   на `role.scope` с via-коллекцией, либо отдельная агент-roleable
+   проекция (roadmap IDF).
+
 ## Ограничения 0.1
 
 - Только `tools` и `resources`. `prompts` / `completion` — roadmap.

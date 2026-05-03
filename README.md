@@ -6,13 +6,14 @@
 без дополнительной работы**.
 
 ```
-IDF intent.canExecute        ─→   MCP tool
-intent.parameters            ─→   JSON Schema inputSchema
-intent.conditions            ─→   description hint для LLM
-intent.irreversibility:high  ─→   annotations.destructiveHint
-role.visibleFields           ─→   resource per collection
-preapproval guard            ─→   автоматические scope/limits
-checkOwnership               ─→   автоматический access control
+IDF intent.canExecute            ─→  MCP tool
+intent.parameters                ─→  JSON Schema inputSchema
+intent.conditions                ─→  description hint для LLM
+ontology.invariants (релевантные)─→  description блок "May fail on"
+intent.irreversibility:high      ─→  annotations.destructiveHint + warning
+role.visibleFields               ─→  resource per collection
+preapproval guard                ─→  автоматические scope/limits
+checkOwnership                   ─→  автоматический access control
 ```
 
 ## Quick start
@@ -106,6 +107,32 @@ MCP-сообщество решает эти задачи руками в каж
 5. **Business rules как hint для LLM.** Обычно не передаются.
    IDF: `intent.conditions` попадают в tool description:
    `"booking.status = \"confirmed\"; booking.clientId = viewer.id"`.
+6. **Domain invariants** (referential / transition / cardinality / aggregate /
+   expression) **передаются ДО вызова, не только в rejection.** IDF: для
+   каждого intent вычисляются *релевантные* инварианты — те, на которые
+   intent МОЖЕТ упасть исходя из своих effects (alpha × entity match) — и
+   попадают в tool description блоком `May fail on (domain invariants)`.
+
+   Пример (`submit_response` в freelance):
+
+   ```
+   Executor публикует Response на Task в status=published; ...
+
+   Creates: Response(pending)
+
+   Preconditions: task.status = "published"
+
+   May fail on (domain invariants):
+     - Response.taskId must reference existing Task.id
+     - Response: max 1 per taskId where (status="selected")
+     - Response: row count rule per taskId where (status="pending") [info]
+   ```
+
+   Это решает №1 жалобу на рукописные MCP-серверы:
+   *«сервер не передаёт доменную семантику — LLM знает что вызвать, но
+   не знает почему вызов упадёт»*. С IDF агент получает структурированный
+   список правил-кандидатов до вызова, а при rejection — точное
+   `failedCondition` AST в ответе.
 
 ## Что должно быть сделано в домене, чтобы MCP работал
 

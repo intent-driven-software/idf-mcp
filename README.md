@@ -1,5 +1,10 @@
 # @intent-driven/mcp-server
 
+[![CI](https://github.com/DubovskiyIM/idf-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/DubovskiyIM/idf-mcp/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/@intent-driven/mcp-server.svg)](https://www.npmjs.com/package/@intent-driven/mcp-server)
+[![npm downloads](https://img.shields.io/npm/dm/@intent-driven/mcp-server.svg)](https://www.npmjs.com/package/@intent-driven/mcp-server)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Превращает любой [IDF](https://github.com/DubovskiyIM/idf)-домен в MCP-сервер
 для Claude Desktop / Cursor / Zed. Тонкий адаптер поверх
 `/api/agent/:domain/{schema, world, exec}` — **один файл онтологии → MCP-tools

@@ -1,0 +1,103 @@
+# Release pipeline: push tag `v*` → run tests → npm publish → GitHub Release.
+#
+# Trigger:
+#   git tag v1.0.0
+#   git push --tags
+#
+# Гарантии:
+#   1. Версия в package.json равна тегу (без префикса v) — иначе job fails
+#      на guard-step. Защищает от случайных тегов.
+#   2. Тесты обязательны перед публикацией. Если 1 тест упадёт — npm publish
+#      не выполнится.
+#   3. provenance: true — npm публикует sigstore-attestation, что tarball
+#      собран из этого коммита в этом репо. Видно публично на npmjs.com.
+#   4. GitHub Release автоматически создаётся с body из CHANGELOG.md
+#      (раздел про текущую версию).
+#
+# Setup (one-time):
+#   1. Создать granular npm access token:
+#      npmjs.com → Profile → Access Tokens → Generate New Token →
+#      Granular Access Token
+#        - Name: idf-mcp-ci
+#        - Expiration: 1 year (или короче по вкусу)
+#        - Packages and scopes:
+#            "@intent-driven/mcp-server" — Read and write
+#        - Allowed IP ranges: пусто (GH-runners)
+#        - Bypass 2FA: YES ← обязательно для CI
+#   2. Положить токен в GitHub Secret:
+#      gh secret set NPM_TOKEN --repo DubovskiyIM/idf-mcp --body "npm_xxxxx"
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write          # для GitHub Release
+  id-token: write          # для npm provenance (sigstore OIDC)
+
+jobs:
+  release:
+    name: publish to npm + github release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history → CHANGELOG диff
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org/
+          cache: npm
+
+      - name: install
+        run: npm ci
+
+      - name: guard — tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG does not match package.json version $PKG"
+            exit 1
+          fi
+          echo "version=$PKG" >> "$GITHUB_OUTPUT"
+        id: guard
+
+      - name: test
+        run: npm test
+
+      - name: pack (sanity)
+        run: npm pack --dry-run
+
+      - name: publish to npm with provenance
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: extract release notes from CHANGELOG.md
+        id: notes
+        run: |
+          VERSION="${{ steps.guard.outputs.version }}"
+          # Extract section from "## [VERSION]" to next "## ["
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { capture = 1; next }
+            capture && $0 ~ "^## \\[" { capture = 0 }
+            capture { print }
+          ' CHANGELOG.md > release-notes.md
+          echo "—— release notes preview ——"
+          cat release-notes.md
+          echo "—————————————————————————"
+
+      - name: create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.guard.outputs.version }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

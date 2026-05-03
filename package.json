@@ -1,7 +1,7 @@
 {
   "name": "@intent-driven/mcp-server",
-  "version": "0.1.0",
-  "description": "Превращает любой IDF-домен в MCP-сервер (Claude Desktop / Cursor / Zed) через /api/agent/:domain/* — ontology + intents + preapproval → tools + resources без потерь семантики",
+  "version": "1.0.0",
+  "description": "Turn any IDF domain into an MCP server (Claude Desktop / Cursor / Zed). Tool descriptions carry domain semantics — invariants, lifecycle, irreversibility, role scopes — so the agent knows what it can do and why before the call, not after.",
   "type": "module",
   "license": "MIT",
   "author": "Ignat Dubovsky",
@@ -34,6 +34,7 @@
     "src",
     "bin",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {

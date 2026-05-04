@@ -5,10 +5,10 @@
   "type": "module",
   "license": "MIT",
   "author": "Ignat Dubovsky",
-  "homepage": "https://github.com/DubovskiyIM/idf-mcp",
+  "homepage": "https://github.com/intent-driven-software/idf-mcp",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DubovskiyIM/idf-mcp.git"
+    "url": "git+https://github.com/intent-driven-software/idf-mcp.git"
   },
   "keywords": [
     "intent-driven",

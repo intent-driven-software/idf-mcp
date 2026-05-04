@@ -25,7 +25,7 @@
 #        - Allowed IP ranges: пусто (GH-runners)
 #        - Bypass 2FA: YES ← обязательно для CI
 #   2. Положить токен в GitHub Secret:
-#      gh secret set NPM_TOKEN --repo DubovskiyIM/idf-mcp --body "npm_xxxxx"
+#      gh secret set NPM_TOKEN --repo intent-driven-software/idf-mcp --body "npm_xxxxx"
 name: Release
 
 on:

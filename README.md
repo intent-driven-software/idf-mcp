@@ -1,6 +1,6 @@
 # @intent-driven/mcp-server
 
-[![CI](https://github.com/DubovskiyIM/idf-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/DubovskiyIM/idf-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/intent-driven-software/idf-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/intent-driven-software/idf-mcp/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@intent-driven/mcp-server.svg)](https://www.npmjs.com/package/@intent-driven/mcp-server)
 [![npm downloads](https://img.shields.io/npm/dm/@intent-driven/mcp-server.svg)](https://www.npmjs.com/package/@intent-driven/mcp-server)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -15,7 +15,7 @@ tries something it shouldn't. Not a 500. Not a string. A JSON shape the
 LLM can read and adapt to.
 
 → Landing &amp; demo: **[fold.intent-design.tech](https://fold.intent-design.tech)**
-→ 5-min quickstart: **[github.com/DubovskiyIM/fold-runtime-quickstart](https://github.com/DubovskiyIM/fold-runtime-quickstart)**
+→ 5-min quickstart: **[github.com/intent-driven-software/fold-runtime-quickstart](https://github.com/intent-driven-software/fold-runtime-quickstart)**
 
 ---
 
@@ -102,11 +102,11 @@ retry. Not a 500. Not a string. A JSON shape the LLM can read and adapt to.
 
 ## Quickstart
 
-The fastest path is the [**fold-runtime-quickstart**](https://github.com/DubovskiyIM/fold-runtime-quickstart)
+The fastest path is the [**fold-runtime-quickstart**](https://github.com/intent-driven-software/fold-runtime-quickstart)
 &mdash; two commands, Docker-bundled, no path configuration:
 
 ```bash
-git clone https://github.com/DubovskiyIM/fold-runtime-quickstart && cd $_
+git clone https://github.com/intent-driven-software/fold-runtime-quickstart && cd $_
 docker compose up                  # ~3 min first time, ~5 sec after
 
 # in another terminal
@@ -252,7 +252,7 @@ correctly. Without these, `tools/list` may return empty,
 ## Links
 
 - **Landing &amp; demo:** [fold.intent-design.tech](https://fold.intent-design.tech)
-- **Quickstart:** [DubovskiyIM/fold-runtime-quickstart](https://github.com/DubovskiyIM/fold-runtime-quickstart)
+- **Quickstart:** [intent-driven-software/fold-runtime-quickstart](https://github.com/intent-driven-software/fold-runtime-quickstart)
 - **Host runtime:** [DubovskiyIM/idf](https://github.com/DubovskiyIM/idf)
 - **Format spec:** [Manifesto v2](https://github.com/DubovskiyIM/idf/blob/main/docs/manifesto-v2.md) — §1 (materializations), §5 (roles), §17 (agent layer), §23 (irreversibility)
 - **MCP spec:** [modelcontextprotocol.io](https://modelcontextprotocol.io)

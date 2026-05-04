@@ -5,176 +5,258 @@
 [![npm downloads](https://img.shields.io/npm/dm/@intent-driven/mcp-server.svg)](https://www.npmjs.com/package/@intent-driven/mcp-server)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Превращает любой [IDF](https://github.com/DubovskiyIM/idf)-домен в MCP-сервер
-для Claude Desktop / Cursor / Zed. Тонкий адаптер поверх
-`/api/agent/:domain/{schema, world, exec}` — **один файл онтологии → MCP-tools
-без дополнительной работы**.
+**Stop giving AI agents API keys. Give them a domain.**
+
+`@intent-driven/mcp-server` exposes any [IDF](https://github.com/DubovskiyIM/idf) domain
+to Claude Desktop / Cursor / Zed as a Model Context Protocol server &mdash; with
+**domain semantics in tool descriptions** (preconditions, invariants,
+irreversibility, role scopes) and **structured rejections** when the agent
+tries something it shouldn't. Not a 500. Not a string. A JSON shape the
+LLM can read and adapt to.
+
+→ Landing &amp; demo: **[fold.intent-design.tech](https://fold.intent-design.tech)**
+→ 5-min quickstart: **[github.com/DubovskiyIM/fold-runtime-quickstart](https://github.com/DubovskiyIM/fold-runtime-quickstart)**
+
+---
+
+## Why this exists
+
+On April 25 2026 a Cursor agent powered by Claude Opus 4.6, working on a
+credential mismatch in PocketOS staging, found an unrelated API token,
+decided to delete a Railway volume to fix things, and wiped the production
+database **and all volume-level backups** in 9 seconds. The agent's own
+post-mortem:
+
+> "I guessed that deleting a staging volume via the API would be scoped
+> to staging only. I didn't verify. I didn't check if the volume ID was
+> shared across environments."
+
+30-hour outage. PocketOS rolled back to a 3-month-old backup.
+([The Register](https://www.theregister.com/2026/04/27/cursoropus_agent_snuffs_out_pocketos/) ·
+[FastCompany](https://www.fastcompany.com/91533544/cursor-claude-ai-agent-deleted-software-company-pocket-os-database-jer-crane) ·
+[OECD AI Incident #6153](https://oecd.ai/en/incidents/2026-04-27-6153))
+
+This isn't an alignment problem. The system never told the agent what
+was allowed, why it shouldn't, or what would happen if it tried. Existing
+MCP servers don't either &mdash; tool descriptions carry endpoint shape
+and not much else. The agent learns by colliding with 500s.
+
+This package fixes that. The MCP tool descriptions carry the **why** the
+call might fail; the rejection carries the **what** failed, structured.
+
+## What the agent actually sees
+
+`submit_response` in the freelance domain:
 
 ```
-IDF intent.canExecute            ─→  MCP tool
-intent.parameters                ─→  JSON Schema inputSchema
-intent.conditions                ─→  description hint для LLM
-ontology.invariants (релевантные)─→  description блок "May fail on"
-intent.irreversibility:high      ─→  annotations.destructiveHint + warning
-role.visibleFields               ─→  resource per collection
-preapproval guard                ─→  автоматические scope/limits
-checkOwnership                   ─→  автоматический access control
+Executor публикует Response на Task в status=published; Response.status=pending; +1 в Task.responsesCount
+
+Creates: Response(pending)
+
+Preconditions: task.status = "published"
+
+May fail on (domain invariants):
+  - Response.taskId must reference existing Task.id
+  - Response: max 1 per taskId where (status="selected")
+  - Response: row count rule per taskId where (status="pending") [info]
 ```
 
-## Quick start
+`release_payment` in the same domain:
 
-1. Поднимите IDF server (из репо [idf](https://github.com/DubovskiyIM/idf)):
+```
+Customer releases escrow to executor. After confirmation, money is gone — forward-correction only.
 
-   ```bash
-   npm run server   # :3001 по умолчанию
-   ```
+⚠️ Irreversible action (point-of-no-return: high). Forward-correction only after this effect is confirmed.
 
-2. Добавьте сервер в Claude Desktop
-   (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+May fail on (domain invariants):
+  - Deal.status transitions allowed: in_progress→completed, on_review→completed, ...
+```
 
-   ```json
-   {
-     "mcpServers": {
-       "idf-booking": {
-         "command": "npx",
-         "args": ["-y", "@intent-driven/mcp-server"],
-         "env": {
-           "IDF_SERVER": "http://localhost:3001",
-           "IDF_DOMAIN": "booking",
-           "IDF_ONTOLOGY_PATH": "/Users/you/WebstormProjects/idf/src/domains/booking"
-         }
-       }
-     }
-   }
-   ```
+None of this is hand-written for the MCP server. It's all derived from
+one declarative IDF artifact (entities + intents + invariants + roles
++ irreversibility points).
 
-3. Перезапустите Claude Desktop — в Tools-меню появятся инструменты
-   `create_booking`, `cancel_booking`, `reschedule_booking`, …
+## What a structured rejection looks like
 
-## CLI
+Agent submits a $50,000 BTC long without preapproval. The runtime
+intercepts **before** any effect lands in storage:
+
+```json
+HTTP 403
+{
+  "error": "preapproval_denied",
+  "intentId": "agent_execute_preapproved_order",
+  "reason": "no_preapproval",
+  "details": {
+    "entity": "AgentPreapproval",
+    "ownerField": "userId",
+    "viewerId": "user_5f57c252"
+  }
+}
+```
+
+The next move for any sane agent: stop, ask the human for a preapproval,
+retry. Not a 500. Not a string. A JSON shape the LLM can read and adapt to.
+
+---
+
+## Quickstart
+
+The fastest path is the [**fold-runtime-quickstart**](https://github.com/DubovskiyIM/fold-runtime-quickstart)
+&mdash; two commands, Docker-bundled, no path configuration:
 
 ```bash
-mcp-idf --domain=booking --server=http://localhost:3001
-mcp-idf --domain=freelance --ontology-path=/abs/path/to/src/domains/freelance
-mcp-idf --no-bootstrap   # не загружать онтологию (предполагается, уже загружена)
+git clone https://github.com/DubovskiyIM/fold-runtime-quickstart && cd $_
+docker compose up                  # ~3 min first time, ~5 sec after
+
+# in another terminal
+npm install
+npm run demo:rogue   && \          # Act 1: $50K trade → 403 with structured rejection
+  npm run demo:grant && \          # Act 2: investor issues $1K cap (one declarative effect)
+  npm run demo:smart               # Act 3: agent reads cap, scales to $950, executes 200 OK
 ```
 
-Флаги / env переменные:
+If you'd rather drive the host yourself (e.g. for development against your
+own ontologies), see the next section.
 
-| Флаг | Env | По умолчанию |
-|---|---|---|
-| `--domain` | `IDF_DOMAIN` | `booking` |
-| `--server` | `IDF_SERVER` | `http://localhost:3001` |
-| `--ontology-path` | `IDF_ONTOLOGY_PATH` | `./src/domains/<domain>` |
-| `--agent-email` | `IDF_AGENT_EMAIL` | `mcp-agent@local` |
-| `--no-bootstrap` | `IDF_BOOTSTRAP=0` | bootstrap включён |
+## Drive the MCP server directly
 
-## Что экспонируется
+You need a running IDF host on `localhost:3001` (the quickstart's
+docker-compose gives you that, or run [`idf`](https://github.com/DubovskiyIM/idf)
+manually) and a bootstrapped domain.
 
-### tools
+### CLI
 
-Один tool на каждый intent из `ontology.roles.agent.canExecute`.
+```bash
+# bootstrap from local FS (ontology + intents)
+mcp-idf --domain=invest --ontology-path=/abs/path/to/idf/src/domains/invest
+
+# skip bootstrap (domain already loaded by another client / docker)
+mcp-idf --domain=invest --no-bootstrap
+```
+
+Flags / env vars:
+
+| Flag                | Env var                | Default                         |
+|---------------------|------------------------|---------------------------------|
+| `--domain`          | `IDF_DOMAIN`           | `booking`                       |
+| `--server`          | `IDF_SERVER`           | `http://localhost:3001`         |
+| `--ontology-path`   | `IDF_ONTOLOGY_PATH`    | `./src/domains/<domain>`        |
+| `--agent-email`     | `IDF_AGENT_EMAIL`      | `mcp-agent@local`               |
+| `--no-bootstrap`    | `IDF_BOOTSTRAP=0`      | bootstrap on (load FS ontology) |
+
+### Claude Desktop
+
+`~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "invest": {
+      "command": "npx",
+      "args": ["-y", "@intent-driven/mcp-server"],
+      "env": {
+        "IDF_SERVER": "http://localhost:3001",
+        "IDF_DOMAIN": "invest",
+        "IDF_BOOTSTRAP": "0",
+        "IDF_AGENT_EMAIL": "claude@local"
+      }
+    }
+  }
+}
+```
+
+`IDF_BOOTSTRAP=0` if the host already has the domain loaded (the quickstart
+container does this on `docker compose up`). Restart Claude Desktop fully
+(⌘Q + relaunch &mdash; closing the window isn't enough). All
+agent-callable intents appear in the **Tools** menu.
+
+---
+
+## Schema mapping
+
+```
+IDF intent.canExecute              ─→  MCP tool
+intent.parameters                  ─→  JSON Schema inputSchema
+intent.conditions                  ─→  description hint for LLM
+ontology.invariants (relevant)     ─→  description block "May fail on"
+intent.irreversibility:high        ─→  annotations.destructiveHint + warning
+role.visibleFields                 ─→  resource per collection
+preapproval guard                  ─→  automatic scope/limits
+checkOwnership                     ─→  automatic access control
+```
+
+### Tools
+
+One tool per intent in `ontology.roles.agent.canExecute`.
 
 - `name` — `intentId`
 - `title` — `intent.name`
-- `description` — `intent.description` + `Создаёт: …` + предусловия +
-  предупреждение о необратимости (если `irreversibility: "high"`)
-- `inputSchema` — JSON Schema из `particles.parameters`:
+- `description` — `intent.description` + `Creates: …` + preconditions +
+  `May fail on (domain invariants)` block + irreversibility warning when
+  `irreversibility: "high"`
+- `inputSchema` — JSON Schema from `particles.parameters`:
   - `entityRef` / `id` / `text` / `textarea` / `select` → `string`
   - `number` → `number`
   - `boolean` → `boolean`
   - `datetime` → `string` + `format: "date-time"`
   - `email` → `string` + `format: "email"`
-- `annotations.destructiveHint` — `true` если
-  `intent.irreversibility === "high"` (§23 IDF: effect-level точка невозврата)
+- `annotations.destructiveHint` — `true` when
+  `intent.irreversibility === "high"` (§23 IDF: effect-level point of no return)
 
-### resources
+### Resources
 
-Один resource на каждую коллекцию из `role.visibleFields[entity]`.
-URI-схема: `idf://<domain>/<collection>`.
+One resource per collection in `role.visibleFields[entity]`. URI scheme:
+`idf://<domain>/<collection>`.
 
-`resources/read` возвращает filtered world из `/api/agent/:domain/world` —
-уже отфильтрованный под viewer (single-owner + m2m через role.scope).
+`resources/read` returns the filtered world from
+`/api/agent/:domain/world` &mdash; already scoped per viewer (single-owner
++ m2m via `role.scope`).
 
-## Почему это нелинейный выигрыш
+---
 
-MCP-сообщество решает эти задачи руками в каждом сервере:
+## What this gets you that hand-rolled MCP doesn't
 
-1. **Scope / visibility.** Руками решается через декораторы или middleware.
-   IDF: `role.visibleFields` — декларативно.
-2. **Permissions.** Руками: OAuth scopes, custom ACL.
-   IDF: `ontology.roles.agent.canExecute` — декларативно.
-3. **Rate limits / spending caps.** Руками.
-   IDF: `preapproval.requiredFor` с `maxAmount` / `dailySum` — декларативно.
-4. **Destructive hints.** Руками проставляются, часто забываются.
-   IDF: `effect.context.__irr.point === "high"` → `destructiveHint: true`
-   автоматически.
-5. **Business rules как hint для LLM.** Обычно не передаются.
-   IDF: `intent.conditions` попадают в tool description:
-   `"booking.status = \"confirmed\"; booking.clientId = viewer.id"`.
-6. **Domain invariants** (referential / transition / cardinality / aggregate /
-   expression) **передаются ДО вызова, не только в rejection.** IDF: для
-   каждого intent вычисляются *релевантные* инварианты — те, на которые
-   intent МОЖЕТ упасть исходя из своих effects (alpha × entity match) — и
-   попадают в tool description блоком `May fail on (domain invariants)`.
+The MCP community solves these by hand in every server:
 
-   Пример (`submit_response` в freelance):
+1. **Scope / visibility.** Decorators or middleware. → IDF declares `role.visibleFields`.
+2. **Permissions.** OAuth scopes, custom ACL. → IDF declares `roles.agent.canExecute`.
+3. **Rate limits / spending caps.** Bespoke per server. → IDF declares `preapproval.requiredFor` with `maxAmount` / `dailySum`.
+4. **Destructive hints.** Manual, often forgotten. → IDF: `effect.context.__irr.point === "high"` → `destructiveHint: true` automatic.
+5. **Business rules as LLM hint.** Usually not transmitted. → IDF: `intent.conditions` land in tool description as `Preconditions:`.
+6. **Domain invariants in descriptions.** Almost never. → IDF computes the relevant invariants per intent (alpha × entity match) and injects them as `May fail on (domain invariants)`. Closes the #1 complaint about hand-rolled MCP servers: *"the server doesn't carry domain semantics — the LLM knows what to call but not why it'll fail."*
 
-   ```
-   Executor публикует Response на Task в status=published; ...
+---
 
-   Creates: Response(pending)
+## Domain prerequisites
 
-   Preconditions: task.status = "published"
+The protocol is reliable, but it needs the IDF domain to be authored
+correctly. Without these, `tools/list` may return empty,
+`tools/call` may return `domain_not_supported`, resources may be empty:
 
-   May fail on (domain invariants):
-     - Response.taskId must reference existing Task.id
-     - Response: max 1 per taskId where (status="selected")
-     - Response: row count rule per taskId where (status="pending") [info]
-   ```
+1. **`ontology.roles.agent`** must be declared. No agent role → no tools, no resources.
+2. **`role.agent.canExecute`** — list of safe intents. Avoid `__irr:high` without preapproval.
+3. **`role.agent.visibleFields`** — array of fields or `"own"` / `"all"` / `"aggregated"` markers.
+4. **Server-side effect builder** (`server/schema/effectBuildersRegistry.cjs` in `idf`) must include your domain. Without it `tools/call` returns `domain_not_supported`.
+5. **Public catalogs without `ownerField`.** When an entity has `ownerField`, the SDK `filterWorldForRole` filters out rows where `row[ownerField] !== viewer.id`. For public catalogs (e.g. `Task` with `status: "published"`) use `role.scope` with a via-collection or a separate agent-roleable projection (roadmap).
 
-   Это решает №1 жалобу на рукописные MCP-серверы:
-   *«сервер не передаёт доменную семантику — LLM знает что вызвать, но
-   не знает почему вызов упадёт»*. С IDF агент получает структурированный
-   список правил-кандидатов до вызова, а при rejection — точное
-   `failedCondition` AST в ответе.
+---
 
-## Что должно быть сделано в домене, чтобы MCP работал
+## Limitations (1.0)
 
-Протокол надёжный, но требует от IDF-домена нескольких вещей. Если
-что-то из перечисленного не сделано, tools/list может вернуть пустой
-массив, tools/call — `domain_not_supported`, resources — пустые коллекции:
+- `tools` and `resources` only. `prompts` / `completion` — roadmap.
+- Bootstrap reads ontology from local FS. SaaS variant (ontology from DB/API) — next.
+- Auth: email/password login. PAT / OAuth2 — next.
+- Sync only (`POST /exec`). Long-running via MCP tasks API — next.
 
-1. **`ontology.roles.agent`** должна быть объявлена. Без неё агент
-   не видит ни tools, ни resources.
-2. **`role.agent.canExecute`** — безопасные intents (избегайте
-   `__irr:high` без preapproval).
-3. **`role.agent.visibleFields`** — массив полей или `"own"` / `"all"`
-   / `"aggregated"` маркеры.
-4. **Серверный effect builder** (`server/schema/effectBuildersRegistry.cjs`
-   в idf-prototype) должен включать ваш домен. Без него tools/call
-   отдаёт `domain_not_supported`.
-5. **Публичные каталоги без ownerField.** Если entity имеет
-   `ownerField`, SDK `filterWorldForRole` отфильтрует все row'ы,
-   где `row[ownerField] !== viewer.id`. Для публичных каталогов
-   (например, `Task` со `status: "published"`) нужна либо замена
-   на `role.scope` с via-коллекцией, либо отдельная агент-roleable
-   проекция (roadmap IDF).
+## Links
 
-## Ограничения 0.1
+- **Landing &amp; demo:** [fold.intent-design.tech](https://fold.intent-design.tech)
+- **Quickstart:** [DubovskiyIM/fold-runtime-quickstart](https://github.com/DubovskiyIM/fold-runtime-quickstart)
+- **Host runtime:** [DubovskiyIM/idf](https://github.com/DubovskiyIM/idf)
+- **Format spec:** [Manifesto v2](https://github.com/DubovskiyIM/idf/blob/main/docs/manifesto-v2.md) — §1 (materializations), §5 (roles), §17 (agent layer), §23 (irreversibility)
+- **MCP spec:** [modelcontextprotocol.io](https://modelcontextprotocol.io)
 
-- Только `tools` и `resources`. `prompts` / `completion` — roadmap.
-- Bootstrap читает ontology из локальной FS. Для SaaS-варианта (ontology из
-  БД / API) — следующая версия.
-- Auth: login по email/password. PAT / OAuth2 — 0.2.
-- Sync-only (`POST /exec` sync). Long-running через MCP tasks API — 0.3.
-
-## Ссылки
-
-- [IDF манифест v2](https://github.com/DubovskiyIM/idf/blob/main/docs/manifesto-v2.md) — §1 (материализации),
-  §5 (роли), §17 (agent-layer), §23 (irreversibility)
-- [MCP spec](https://modelcontextprotocol.io)
-
-## Лицензия
+## License
 
 MIT

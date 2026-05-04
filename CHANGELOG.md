@@ -5,6 +5,22 @@ All notable changes to `@intent-driven/mcp-server` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] — 2026-05-04
+
+Patch release. Repository moved from `DubovskiyIM/idf-mcp` to
+`intent-driven-software/idf-mcp` as part of org consolidation; this
+release re-publishes the tarball with the updated `repository.url`
+metadata so npmjs.com links resolve directly to the org repo (rather
+than going through GitHub's 301 redirect from the personal namespace).
+
+### Changed
+- `package.json` `homepage` and `repository.url` → `intent-driven-software/idf-mcp`
+- `src/server.js` MCP Server identity version → `1.0.1`
+- `bin/mcp-idf.js` README references → org URLs
+- `CHANGELOG.md` GitHub commit/PR refs to `idf-mcp` PRs reflow through `intent-driven-software/idf-mcp` (the original `DubovskiyIM/idf` host commit references are intentionally preserved — host runtime stays personal)
+
+No code or behavioural changes. Tarball contents identical except for `package.json`, `src/server.js`, README, and CHANGELOG. Existing 1.0.0 installs continue to work.
+
 ## [1.0.0] — 2026-05-04
 
 First production release. The package was incubated as `0.1.x` since

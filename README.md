@@ -17,6 +17,12 @@ LLM can read and adapt to.
 → Landing &amp; demo: **[fold.intent-design.tech](https://fold.intent-design.tech)**
 → 5-min quickstart: **[github.com/intent-driven-software/fold-runtime-quickstart](https://github.com/intent-driven-software/fold-runtime-quickstart)**
 
+### 75-second walkthrough
+
+[![Watch the demo on Loom](https://cdn.loom.com/sessions/thumbnails/2ca4a40e3b9245feb86a74a998e42cb8-with-play.gif)](https://www.loom.com/share/2ca4a40e3b9245feb86a74a998e42cb8)
+
+→ **[Watch on Loom →](https://www.loom.com/share/2ca4a40e3b9245feb86a74a998e42cb8)**
+
 ---
 
 ## Why this exists

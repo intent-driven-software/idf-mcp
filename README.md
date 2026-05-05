@@ -50,6 +50,39 @@ and not much else. The agent learns by colliding with 500s.
 This package fixes that. The MCP tool descriptions carry the **why** the
 call might fail; the rejection carries the **what** failed, structured.
 
+## How it plugs into your stack
+
+`@intent-driven/mcp-server` is a **stdio MCP adapter** that talks to a
+**Fold runtime** over an HTTP API. The runtime is a sibling service —
+not middleware in your existing app, not codegen at runtime. Your current
+backend stays where it is; the IDF artifact *describes* the agent-facing
+surface, and the runtime serves it on its own port (default `:3001`).
+
+```
+┌──────────────────┐   stdio    ┌──────────────────┐   HTTP   ┌────────────────────┐
+│ Claude Desktop   │ ◀─────────▶│ @intent-driven/  │ ◀───────▶│ Fold runtime       │
+│ Cursor / Zed     │            │ mcp-server       │          │ (idf host :3001)   │
+└──────────────────┘            └──────────────────┘          └────────┬───────────┘
+                                                                       │ reads
+                                                                       ▼
+                                                              ┌────────────────────┐
+                                                              │ IDF artifact       │
+                                                              │ (entities + intents│
+                                                              │  + invariants +    │
+                                                              │  roles + __irr)    │
+                                                              └────────────────────┘
+```
+
+The **MCP server** is what Claude/Cursor connects to. The **runtime** is
+what enforces the rejection. The **IDF artifact** is what you author.
+
+**Who this is for.** You're the engineer at a 5–30-person team putting
+an AI agent into production this quarter — on top of a real backend,
+with real customers, real SOC2 review on the horizon. You don't want a
+guardrail layer that reviews after the fact. You want the system itself
+to refuse the wrong action — before the call, with a structured reason
+the agent can read.
+
 ## What the agent actually sees
 
 `submit_response` in the freelance domain:
@@ -231,6 +264,35 @@ The MCP community solves these by hand in every server:
 4. **Destructive hints.** Manual, often forgotten. → IDF: `effect.context.__irr.point === "high"` → `destructiveHint: true` automatic.
 5. **Business rules as LLM hint.** Usually not transmitted. → IDF: `intent.conditions` land in tool description as `Preconditions:`.
 6. **Domain invariants in descriptions.** Almost never. → IDF computes the relevant invariants per intent (alpha × entity match) and injects them as `May fail on (domain invariants)`. Closes the #1 complaint about hand-rolled MCP servers: *"the server doesn't carry domain semantics — the LLM knows what to call but not why it'll fail."*
+
+---
+
+## How long does authoring an IDF artifact take
+
+Three reference points from the public IDF host runtime:
+
+| Domain      | Shape                                                          | Time                                |
+|-------------|----------------------------------------------------------------|-------------------------------------|
+| `invest`    | 14 entities · 61 intents · 5 invariants · ~600 lines           | a weekend, hand-written             |
+| `gravitino` | 253 entities (Apache catalog OpenAPI) · 120 intents            | imported in <1h, enriched in 2 days |
+| `workflow`  | 9 entities · 47 intents · timer queue · cascade rules          | a day                               |
+
+Where the speed comes from (all in `@intent-driven/cli`):
+
+- `idf import postgres` — reads your live schema, generates entity
+  baseline with FKs and column types as `fieldRole`.
+- `idf import openapi` — reads your existing API spec, generates intents
+  + parameter shapes + reference fields. *This is how a 253-entity
+  domain gets bootstrapped.*
+- `idf import prisma` — same story for ORM-driven backends.
+- `idf enrich` — LLM pass to fill `label`, `fieldRole`, `compositions`,
+  suggested `roles.agent.preapproval` predicates from your existing
+  code comments.
+
+The author-once-then-forget loop is the whole point. Once the artifact
+exists, you don't regenerate scaffolding on schema change — the runtime
+re-reads and serves four readers (UI, voice, agent, document) off the
+same file.
 
 ---
 

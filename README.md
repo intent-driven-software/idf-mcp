@@ -322,7 +322,7 @@ correctly. Without these, `tools/list` may return empty,
 - **Landing &amp; demo:** [fold.intent-design.tech](https://fold.intent-design.tech)
 - **Quickstart:** [intent-driven-software/fold-runtime-quickstart](https://github.com/intent-driven-software/fold-runtime-quickstart)
 - **Host runtime:** [DubovskiyIM/idf](https://github.com/DubovskiyIM/idf)
-- **Format spec:** [Manifesto v2](https://github.com/DubovskiyIM/idf/blob/main/docs/manifesto-v2.md) — §1 (materializations), §5 (roles), §17 (agent layer), §23 (irreversibility)
+- **Why a runtime layer:** [paper](https://fold.intent-design.tech/paper/why-runtime-layer/) — ~1800-word essay on the agent-safety class question this answers
 - **MCP spec:** [modelcontextprotocol.io](https://modelcontextprotocol.io)
 
 ## License

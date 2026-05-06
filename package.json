@@ -1,6 +1,7 @@
 {
   "name": "@intent-driven/mcp-server",
-  "version": "1.0.1",
+  "version": "1.0.2",
+  "mcpName": "io.github.intent-driven-software/idf-mcp",
   "description": "Turn any IDF domain into an MCP server (Claude Desktop / Cursor / Zed). Tool descriptions carry domain semantics — invariants, lifecycle, irreversibility, role scopes — so the agent knows what it can do and why before the call, not after.",
   "type": "module",
   "license": "MIT",

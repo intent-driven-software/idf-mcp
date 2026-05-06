@@ -5,6 +5,37 @@ All notable changes to `@intent-driven/mcp-server` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] — 2026-05-06
+
+Registry-publish release. Adds the metadata required to publish the
+package to the official **MCP Server Registry** (`registry.modelcontextprotocol.io`),
+which replaces the retired third-party-server list in
+`modelcontextprotocol/servers/README.md`.
+
+### Added
+- `package.json` `mcpName` → `io.github.intent-driven-software/idf-mcp`
+  (npm-package ownership-verification marker required by the Registry).
+- `server.json` at repo root — Registry manifest with stdio transport
+  declaration and the five public environment variables (`IDF_SERVER`,
+  `IDF_DOMAIN`, `IDF_BOOTSTRAP`, `IDF_ONTOLOGY_PATH`, `IDF_AUTH_TOKEN`).
+
+### Changed
+- `package.json` version 1.0.1 → 1.0.2.
+- `src/server.js` MCP Server identity version → 1.0.2.
+
+No behavioural changes — same tool surface, same wire shape. Existing
+1.0.1 installs continue to work.
+
+After this release ships to npm, run from the repo root:
+
+```bash
+mcp-publisher login github
+mcp-publisher publish
+```
+
+Server will then appear at
+`https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.intent-driven-software/idf-mcp`.
+
 ## [1.0.1] — 2026-05-04
 
 Patch release. Repository moved from `DubovskiyIM/idf-mcp` to

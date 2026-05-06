@@ -97,7 +97,7 @@ export async function createIdfMcpServer({
 
   // 6. MCP Server wiring.
   const mcp = new Server(
-    { name: `idf-${domain}`, version: "1.0.1" },
+    { name: `idf-${domain}`, version: "1.0.2" },
     { capabilities: { tools: {}, resources: {} } }
   );
 

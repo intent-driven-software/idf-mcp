@@ -16,29 +16,23 @@ export function makeToolCallHandler({ server, domain, token }) {
       body: JSON.stringify(args || {}),
     });
     const payload = await res.json();
+    // Pass-through всего payload'а: agent route возвращает разные shape для
+    // обычных intents (effectId, effects, createdEntity), для lifecycle
+    // intents (approvalRequestId, expiresAt, fromRole), и для approval-action
+    // (status='approved', approvedBy, approvedAt, appliedEffects).
+    // Фильтрация subset'а ломала MCP-flow для approval lifecycle.
     if (res.ok) {
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({
-            status: payload.status,
-            effectId: payload.id,
-            createdEntity: payload.createdEntity,
-            effects: payload.effects,
-          }, null, 2),
+          text: JSON.stringify(payload, null, 2),
         }],
       };
     }
     return {
       content: [{
         type: "text",
-        text: JSON.stringify({
-          status: payload.status || "error",
-          error: payload.error,
-          reason: payload.reason || payload.message,
-          failedCondition: payload.failedCondition,
-          issues: payload.issues,
-        }, null, 2),
+        text: JSON.stringify(payload, null, 2),
       }],
       isError: true,
     };

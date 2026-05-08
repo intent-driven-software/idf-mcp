@@ -32,6 +32,8 @@ export async function createIdfMcpServer({
   server: idfServer = "http://localhost:3001",
   domain = "booking",
   agentEmail = "mcp-agent@local",
+  agentRole = null,
+  agentScope = null,
   ontologyPath = null,
   doBootstrap = true,
   logger = () => {},
@@ -50,10 +52,18 @@ export async function createIdfMcpServer({
     }
   }
 
-  // 2. Login → JWT.
+  // 2. Login → JWT. opts (role/scope) попадает в новый user.metadata —
+  //    необходимо для доменов с custom-ролями (host fallback'ится на
+  //    DEFAULT_ROLE='agent', но если такой роли нет в ontology — 400
+  //    role_unknown). Existing user'ы (login OK) уже имеют metadata из БД.
+  const opts = (agentRole || agentScope) ? {
+    ...(agentRole ? { role: agentRole } : {}),
+    ...(agentScope ? { scope: agentScope } : {}),
+  } : null;
   const token = await agentLogin({
     server: idfServer,
     email: agentEmail,
+    opts,
     logger,
   });
 

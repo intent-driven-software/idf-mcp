@@ -40,15 +40,18 @@ mcp-idf — MCP stdio-сервер поверх IDF agent-layer
 
 Usage:
   mcp-idf [--domain=<name>] [--server=<url>] [--ontology-path=<path>]
-          [--agent-email=<email>] [--no-bootstrap]
+          [--agent-email=<email>] [--agent-role=<role>] [--agent-scope=<json>]
+          [--no-bootstrap]
 
 Env:
   IDF_DOMAIN, IDF_SERVER, IDF_ONTOLOGY_PATH, IDF_AGENT_EMAIL, IDF_BOOTSTRAP
+  IDF_AGENT_ROLE, IDF_AGENT_SCOPE (JSON-string, e.g. '{"environment":"staging"}')
 
 Examples:
   mcp-idf --domain=booking
-  mcp-idf --domain=freelance --server=http://localhost:3001
-  IDF_DOMAIN=invest mcp-idf
+  mcp-idf --domain=infra --agent-role=staging-agent \\
+          --agent-scope='{"environment":"staging"}'
+  IDF_AGENT_ROLE=infra-operator mcp-idf --domain=infra
   mcp-idf --no-bootstrap   # ontology уже зарегистрирована другим клиентом
 `);
 }
@@ -63,6 +66,17 @@ async function main() {
   const domain = args.domain || process.env.IDF_DOMAIN || "booking";
   const server = args.server || process.env.IDF_SERVER || "http://localhost:3001";
   const agentEmail = args["agent-email"] || process.env.IDF_AGENT_EMAIL || "mcp-agent@local";
+  const agentRole = args["agent-role"] || process.env.IDF_AGENT_ROLE || null;
+  const scopeRaw = args["agent-scope"] || process.env.IDF_AGENT_SCOPE || null;
+  let agentScope = null;
+  if (scopeRaw) {
+    try {
+      agentScope = JSON.parse(scopeRaw);
+    } catch (e) {
+      console.error(`[mcp-idf] invalid --agent-scope JSON: ${e.message}`);
+      process.exit(1);
+    }
+  }
   const envBootstrap = process.env.IDF_BOOTSTRAP;
   const doBootstrap = args.noBootstrap
     ? false
@@ -74,12 +88,16 @@ async function main() {
   const ontologyPath = args["ontology-path"] || process.env.IDF_ONTOLOGY_PATH || defaultOntology;
 
   const log = (...xs) => console.error("[mcp-idf]", ...xs);
-  log(`starting; server=${server} domain=${domain} bootstrap=${doBootstrap}`);
+  const roleNote = agentRole ? ` role=${agentRole}` : "";
+  const scopeNote = agentScope ? ` scope=${JSON.stringify(agentScope)}` : "";
+  log(`starting; server=${server} domain=${domain} bootstrap=${doBootstrap}${roleNote}${scopeNote}`);
 
   const { connectStdio } = await createIdfMcpServer({
     server,
     domain,
     agentEmail,
+    agentRole,
+    agentScope,
     ontologyPath,
     doBootstrap,
     logger: log,

@@ -20,12 +20,7 @@ export function makeToolCallHandler({ server, domain, token }) {
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({
-            status: payload.status,
-            effectId: payload.id,
-            createdEntity: payload.createdEntity,
-            effects: payload.effects,
-          }, null, 2),
+          text: JSON.stringify(payload, null, 2),
         }],
       };
     }

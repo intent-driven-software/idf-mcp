@@ -102,7 +102,8 @@ export async function createIdfMcpServer({
   }));
   const resources = buildResourceList({ domain, visibleFields, worldSnapshot });
 
-  const callTool = makeToolCallHandler({ server: idfServer, domain, token });
+  const intentsById = Object.fromEntries(intents.map(i => [i.intentId, i]));
+  const callTool = makeToolCallHandler({ server: idfServer, domain, token, intentsById });
   const readResource = makeResourceReadHandler({ server: idfServer, domain, token });
 
   // 6. MCP Server wiring.

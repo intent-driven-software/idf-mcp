@@ -5,8 +5,25 @@
  * resources/* → GET  /api/agent/:domain/world (фильтруется по visibleFields)
  */
 
-export function makeToolCallHandler({ server, domain, token }) {
+/**
+ * Маршрутизация по intent.alpha:
+ *   alpha=read → GET /api/agent/:domain/world + filter по intent.target.
+ *                Mutation /exec для read-intent'ов в runtime-local v0.6 возвращает
+ *                400 (read_intent_not_executable). Делаем GET явно: единый путь
+ *                для host и runtime-local, snapshot из source-of-truth.
+ *   add/replace/remove/batch → POST /api/agent/:domain/exec/:intentId — стандартный
+ *                ingest пайплайн с invariants + lifecycle.requiresApproval.
+ *
+ * @param {Object} opts
+ * @param {Object<string, {alpha?:string, target?:string}>} [opts.intentsById]
+ *   Map intentId → intent. Если intent не найден — fallback на mutation-path.
+ */
+export function makeToolCallHandler({ server, domain, token, intentsById = {} }) {
   return async (intentId, args) => {
+    const intent = intentsById[intentId];
+    if (intent && intent.alpha === "read") {
+      return await readViaWorld({ server, domain, token, intent: { ...intent, intentId } });
+    }
     const res = await fetch(`${server}/api/agent/${domain}/exec/${intentId}`, {
       method: "POST",
       headers: {
@@ -37,6 +54,42 @@ export function makeToolCallHandler({ server, domain, token }) {
       }],
       isError: true,
     };
+  };
+}
+
+async function readViaWorld({ server, domain, token, intent }) {
+  const res = await fetch(`${server}/api/agent/${domain}/world`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "error",
+          error: "world_fetch_failed",
+          httpStatus: res.status,
+        }, null, 2),
+      }],
+      isError: true,
+    };
+  }
+  const { world } = await res.json();
+  const worldKeys = Object.keys(world || {});
+  const targetEntity = (intent.target || "").split(".")[0];
+  const collection = toCollectionName(targetEntity, worldKeys);
+  const rows = world?.[collection] || [];
+  return {
+    content: [{
+      type: "text",
+      text: JSON.stringify({
+        status: "confirmed",
+        intent: { intentId: intent.intentId, target: intent.target, alpha: "read" },
+        collection,
+        count: rows.length,
+        rows,
+      }, null, 2),
+    }],
   };
 }
 
